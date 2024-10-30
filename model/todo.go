@@ -37,7 +37,7 @@ type (
 	}
 	// A UpdateTODOResponse expresses ...
 	UpdateTODOResponse struct {
-		TODO TODO `json:"todo"`
+		TODO *TODO `json:"todo"`
 	}
 
 	// A DeleteTODORequest expresses ...
