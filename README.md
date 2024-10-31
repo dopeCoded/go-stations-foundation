@@ -186,3 +186,4 @@ https://techbowl.co.jp/techtrain/resetpassword
 ログインしていれば、次のURLから確認できます。
 
 https://techbowl.co.jp/techtrain/mypage/profile
+# go-stations-foundation
