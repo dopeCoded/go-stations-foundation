@@ -30,6 +30,8 @@ func (h *TODOHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.updateTODO(w, r)
 	case http.MethodGet:
 		h.readTODO(w, r)
+	case http.MethodDelete:
+		h.handleDelete(w, r)
 	default:
 		w.Header().Set("Allow", "POST, PUT, GET")
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -182,4 +184,54 @@ func (h *TODOHandler) readTODO(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *TODOHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
+    // リクエストボディのクローズを保証
+    defer func() {
+        if err := r.Body.Close(); err != nil {
+            log.Printf("リクエストボディのクローズに失敗しました: %v", err)
+        }
+    }()
+
+    // リクエストボディをパースして DeleteTODORequest にデコード
+    var req model.DeleteTODORequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        // デコードに失敗した場合は 400 Bad Request を返す
+        http.Error(w, "Bad Request", http.StatusBadRequest)
+        return
+    }
+
+    // ids が空かどうかをチェック
+    if len(req.IDs) == 0 {
+        // ids が空の場合は 400 Bad Request を返す
+        http.Error(w, "IDs are required", http.StatusBadRequest)
+        return
+    }
+
+    // TODO を削除
+    err := h.service.DeleteTODO(r.Context(), req.IDs)
+    if err != nil {
+        // ErrNotFound の場合は 404 Not Found を返す
+        if _, ok := err.(*model.ErrNotFound); ok {
+            http.Error(w, "Not Found", http.StatusNotFound)
+            return
+        }
+        // その他のエラーは 500 Internal Server Error を返す
+        log.Printf("DeleteTODO failed: %v", err)
+        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        return
+    }
+
+    // レスポンスを作成
+    resp := model.DeleteTODOResponse{}
+
+    // レスポンスヘッダーを設定
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+
+    // レスポンスを JSON エンコードして書き込む
+    if err := json.NewEncoder(w).Encode(resp); err != nil {
+        log.Printf("レスポンスのエンコードに失敗しました: %v", err)
+    }
 }
