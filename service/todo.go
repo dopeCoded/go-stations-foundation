@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
+	"fmt"
+    "strings"
 	"time"
 	"github.com/TechBowl-japan/go-stations/model"
 )
@@ -172,7 +174,40 @@ func (s *TODOService) UpdateTODO(ctx context.Context, id int64, subject, descrip
 
 // DeleteTODO deletes TODOs on DB by ids.
 func (s *TODOService) DeleteTODO(ctx context.Context, ids []int64) error {
-	const deleteFmt = `DELETE FROM todos WHERE id IN (?%s)`
+    // ids が空の場合、何もせずに nil を返す
+    if len(ids) == 0 {
+        return nil
+    }
 
-	return nil
+    // ids の数だけ '?' を作成し、カンマで区切る
+    placeholders := strings.TrimLeft(strings.Repeat(",?", len(ids)), ",")
+
+    // DELETE クエリを作成
+    query := fmt.Sprintf("DELETE FROM todos WHERE id IN (%s)", placeholders)
+
+    // ids を []interface{} 型に変換
+    args := make([]interface{}, len(ids))
+    for i, id := range ids {
+        args[i] = id
+    }
+
+    // クエリを実行
+    result, err := s.db.ExecContext(ctx, query, args...)
+    if err != nil {
+        return err
+    }
+
+    // 削除された行数を取得
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return err
+    }
+
+    // 削除された行数が 0 の場合、ErrNotFound を返す
+    if rowsAffected == 0 {
+        return &model.ErrNotFound{}
+    }
+
+    // 正常に削除された場合は nil を返す
+    return nil
 }
