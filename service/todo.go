@@ -64,70 +64,110 @@ func (s *TODOService) CreateTODO(ctx context.Context, subject, description strin
 // ReadTODO reads TODOs on DB.
 func (s *TODOService) ReadTODO(ctx context.Context, prevID, size int64) ([]*model.TODO, error) {
 	const (
-		read       = `SELECT id, subject, description, created_at, updated_at FROM todos ORDER BY id DESC LIMIT ?`
-		readWithID = `SELECT id, subject, description, created_at, updated_at FROM todos WHERE id < ? ORDER BY id DESC LIMIT ?`
+			read       = `SELECT id, subject, description, created_at, updated_at FROM todos ORDER BY id DESC LIMIT ?`
+			readWithID = `SELECT id, subject, description, created_at, updated_at FROM todos WHERE id < ? ORDER BY id DESC LIMIT ?`
 	)
 
-	return nil, nil
+	// size が 0 以下の場合、空スライスを返す
+	if size <= 0 {
+			return []*model.TODO{}, nil
+	}
+
+	var rows *sql.Rows
+	var err error
+
+	// prevID の有無でクエリを選択
+	if prevID > 0 {
+			rows, err = s.db.QueryContext(ctx, readWithID, prevID, size)
+	} else {
+			rows, err = s.db.QueryContext(ctx, read, size)
+	}
+	if err != nil {
+			return nil, err
+	}
+	defer rows.Close()
+
+	var todos []*model.TODO
+
+	// 取得した行をスキャンしてスライスに追加
+	for rows.Next() {
+			var todo model.TODO
+			if err := rows.Scan(&todo.ID, &todo.Subject, &todo.Description, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
+					return nil, err
+			}
+			todos = append(todos, &todo)
+	}
+
+	// イテレーション中にエラーが発生したか確認
+	if err := rows.Err(); err != nil {
+			return nil, err
+	}
+
+	// 空の結果の場合は空スライスを返す
+	if todos == nil {
+			todos = []*model.TODO{}
+	}
+
+	return todos, nil
 }
 
 // UpdateTODO updates the TODO on DB.
 func (s *TODOService) UpdateTODO(ctx context.Context, id int64, subject, description string) (*model.TODO, error) {
-    const (
-        update  = `UPDATE todos SET subject = ?, description = ? WHERE id = ?`
-        confirm = `SELECT id, subject, description, created_at, updated_at FROM todos WHERE id = ?`
-    )
+	const (
+			update  = `UPDATE todos SET subject = ?, description = ? WHERE id = ?`
+			confirm = `SELECT id, subject, description, created_at, updated_at FROM todos WHERE id = ?`
+	)
 
-    // トランザクションの開始
-    tx, err := s.db.BeginTx(ctx, nil)
-    if err != nil {
-        return nil, err
-    }
-    defer tx.Rollback()
+	// トランザクションの開始
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+			return nil, err
+	}
+	defer tx.Rollback()
 
-    // Prepared Statement の作成 (UPDATE)
-    stmtUpdate, err := tx.PrepareContext(ctx, update)
-    if err != nil {
-        return nil, err
-    }
-    defer stmtUpdate.Close()
+	// Prepared Statement の作成 (UPDATE)
+	stmtUpdate, err := tx.PrepareContext(ctx, update)
+	if err != nil {
+			return nil, err
+	}
+	defer stmtUpdate.Close()
 
-    // UPDATE クエリの実行
-    result, err := stmtUpdate.ExecContext(ctx, subject, description, id)
-    if err != nil {
-        return nil, err
-    }
+	// UPDATE クエリの実行
+	result, err := stmtUpdate.ExecContext(ctx, subject, description, id)
+	if err != nil {
+			return nil, err
+	}
 
-    // 更新された行数の確認
-    rowsAffected, err := result.RowsAffected()
-    if err != nil {
-        return nil, err
-    }
-    if rowsAffected == 0 {
-        return nil, &model.ErrNotFound{}
-    }
+	// 更新された行数の確認
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+			return nil, err
+	}
+	if rowsAffected == 0 {
+			return nil, &model.ErrNotFound{}
+	}
 
-    // Prepared Statement の作成 (SELECT)
-    stmtSelect, err := tx.PrepareContext(ctx, confirm)
-    if err != nil {
-        return nil, err
-    }
-    defer stmtSelect.Close()
+	// Prepared Statement の作成 (SELECT)
+	stmtSelect, err := tx.PrepareContext(ctx, confirm)
+	if err != nil {
+			return nil, err
+	}
+	defer stmtSelect.Close()
 
-    // 更新された TODO の取得
-    row := stmtSelect.QueryRowContext(ctx, id)
-    var todo model.TODO
-    if err := row.Scan(&todo.ID, &todo.Subject, &todo.Description, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
-        return nil, err
-    }
+	// 更新された TODO の取得
+	row := stmtSelect.QueryRowContext(ctx, id)
+	var todo model.TODO
+	if err := row.Scan(&todo.ID, &todo.Subject, &todo.Description, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
+			return nil, err
+	}
 
-    // トランザクションのコミット
-    if err := tx.Commit(); err != nil {
-        return nil, err
-    }
+	// トランザクションのコミット
+	if err := tx.Commit(); err != nil {
+			return nil, err
+	}
 
-    // 更新された TODO を返す
-    return &todo, nil
+	// 更新された TODO を返す
+	return &todo, nil
 }
 
 // DeleteTODO deletes TODOs on DB by ids.
