@@ -34,6 +34,11 @@ func realMain() error {
 		dbPath = defaultDBPath
 	}
 
+	//station4
+	// 環境変数からユーザーIDとパスワードを取得
+	userID := os.Getenv("BASIC_AUTH_USER_ID")
+	password := os.Getenv("BASIC_AUTH_PASSWORD")
+	
 	// set time zone
 	var err error
 	time.Local, err = time.LoadLocation("Asia/Tokyo")
@@ -48,8 +53,9 @@ func realMain() error {
 	}
 	defer todoDB.Close()
 
+	//station4
 	// NOTE: 新しいエンドポイントの登録はrouter.NewRouterの内部で行うようにする
-	mux := router.NewRouter(todoDB)
+	mux := router.NewRouter(todoDB, userID, password)
 
 	// HTTP サーバーを起動する
 	return http.ListenAndServe(port, mux)

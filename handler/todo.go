@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"github.com/TechBowl-japan/go-stations/model"
 	"github.com/TechBowl-japan/go-stations/service"
+	"github.com/TechBowl-japan/go-stations/handler/middleware" //station2
 )
 
 // TODOHandler handles HTTP requests for TODO operations.
@@ -133,6 +134,15 @@ func (h *TODOHandler) updateTODO(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TODOHandler) readTODO(w http.ResponseWriter, r *http.Request) {
+	//station2
+	// Context から OS 情報を取得
+    osName, _ := r.Context().Value(middleware.OSContextKey).(string)
+	if osName == "" {
+		osName = "Unknown"
+	}
+    log.Printf("Accessed from OS: %s", osName)
+	//station2 end
+
 	// クエリパラメータから prev_id と size を取得
 	prevIDStr := r.URL.Query().Get("prev_id")
 	sizeStr := r.URL.Query().Get("size")
