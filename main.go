@@ -62,7 +62,7 @@ func realMain() error {
 
 	// station4
 	// NOTE: 新しいエンドポイントの登録はrouter.NewRouterの内部で行うようにする
-	mux := router.NewRouter(todoDB, userID, password, &wg)
+	mux := router.NewRouter(todoDB, userID, password)
 
 	// HTTPサーバーを設定
 	srv := &http.Server{
@@ -71,14 +71,15 @@ func realMain() error {
 	}
 
 	// シグナルを受け取るためのコンテキストを作成
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	//defer stop()
 
+	wg.Add(1)
 	// サーバーを別のゴルーチンで起動
 	go func() {
-		log.Printf("Starting server on %s", port)
+		defer wg.Done()
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("ListenAndServe(): %v", err)
+			log.Println("ListenAndServe: ", err)
 		}
 	}()
 

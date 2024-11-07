@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/TechBowl-japan/go-stations/handler"
@@ -14,7 +13,7 @@ import (
 
 // NewRouter sets up the HTTP router with all necessary endpoints.
 // station4
-func NewRouter(db *sql.DB, userID, password string, wg *sync.WaitGroup) http.Handler {
+func NewRouter(db *sql.DB, userID, password string) http.Handler {
 	mux := http.NewServeMux()
 
 	// Register HealthzHandler
@@ -54,8 +53,6 @@ func NewRouter(db *sql.DB, userID, password string, wg *sync.WaitGroup) http.Han
 	// /graceful-shutdown エンドポイントを追加
 	mux.HandleFunc("/graceful-shutdown", func(w http.ResponseWriter, r *http.Request) {
 		// リクエストが来たら WaitGroup を増やす
-		wg.Add(1)
-		defer wg.Done()
 
 		// 10秒間待つ
 		time.Sleep(10 * time.Second)
